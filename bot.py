@@ -1,29 +1,69 @@
 import telepot
 import re
-import os
 import random
 import string
-import time
-from flask import Flask, render_template, session, url_for, redirect, request
-from telepot.namedtuple import *
+from flask import Flask, request
+from telepot.namedtuple import InlineKeyboardMarkup, InlineKeyboardButton
 
-USERNAME = "both7278"
-TOKEN = "8804083457:AAFVXlNEvvuQxwyLskKOoRjvtd_Dq6eV8OU"
-SECRET = ''.join(random.choice(string.ascii_letters) for x in range(20))
-URL = f"https://{USERNAME}.pythonanywhere.com/{SECRET}"
+TOKEN = os.environ.get("8804083457:AAFVXlNEvvuQxwyLskKOoRjvtd_Dq6eV8OU")
 
-telepot.api.set_proxy('http://proxy.server:3128')
+SECRET = ''.join(random.choice(string.ascii_letters) for _ in range(20))
+
+app = Flask(__name__)
+
 bot = telepot.Bot(TOKEN)
-bot.setWebhook(URL, max_connections=10)
+
+regex = [
+    r'^[!/](start)',
+    r'^[!/](echo) (.*)'
+]
+
+
+def parser(msg, matches):
+    usr = msg['from']
+
+    if msg['type'] == "text":
+
+        if matches[0] == 'start':
+            text = "Welcome!"
+
+            markup = InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [
+                        InlineKeyboardButton(
+                            text='BTN1',
+                            callback_data='btn1'
+                        ),
+                        InlineKeyboardButton(
+                            text='BTN2',
+                            callback_data='btn2'
+                        )
+                    ]
+                ]
+            )
+
+            bot.sendMessage(
+                usr['id'],
+                text,
+                reply_markup=markup
+            )
+            return
+
+        if matches[0] == 'echo' and matches[1]:
+            bot.sendMessage(
+                usr['id'],
+                matches[1]
+            )
+            return
+
 
 def processing(msg):
+
     if 'chat' in msg and msg['chat']['type'] == 'channel':
         return
-        
-    id = msg['from']['id']
-    
+
     if 'text' in msg:
-        msg['text'] = str(msg['text']) # FEELING SAFER ;)
+        msg['text'] = str(msg['text'])
         msg['type'] = 'text'
 
     elif 'data' in msg:
@@ -32,57 +72,51 @@ def processing(msg):
 
     else:
         msg['type'] = 'nontext'
-        types = ['audio', 'voice', 'document', 'photo',
-                 'video', 'contact', 'location']
 
-        for type in types:
-            if type in msg:
-                msg['text'] = f'%{type}'
+        types = [
+            'audio',
+            'voice',
+            'document',
+            'photo',
+            'video',
+            'contact',
+            'location'
+        ]
+
+        for t in types:
+            if t in msg:
+                msg['text'] = f'%{t}'
                 break
 
     if 'text' in msg:
+
         for entry in regex:
-            if re.match(entry, msg["text"]):
-                matches = re.match(entry, msg["text"]).groups()
-                parser(msg, list(matches))
+
+            m = re.match(entry, msg["text"])
+
+            if m:
+                parser(msg, list(m.groups()))
                 return
 
 
-app = Flask(__name__)
+@app.route("/", methods=["GET"])
+def home():
+    return "Bot running"
 
-@app.route(f'/{SECRET}', methods=["POST"])
+
+@app.route("/webhook", methods=["POST"])
 def webhook():
+
     update = request.get_json()
+
     if "message" in update:
-        processing(update['message'])
+        processing(update["message"])
 
-    elif 'callback_query' in update:
-        processing(update['callback_query'])
+    elif "callback_query" in update:
+        processing(update["callback_query"])
 
-    return 'OK'
+    return "OK"
 
-regex = [
-    r'^[!/](start)',
-    r'^[!/](echo) (.*)'
-]
-
-def parser(msg, matches):
-    usr = msg['from']
-
-    if msg['type'] == "text":
-        if matches[0] == 'start':
-            text = "welcome message"
-            markup = InlineKeyboardMarkup(inline_keyboard=[
-                                [InlineKeyboardButton(text='BTN1', callback_data='btn1'),
-                                InlineKeyboardButton(text='BTN2', callback_data='btn2')]
-                        ])
-
-            bot.sendMessage(usr['id'], text, reply_markup=markup)
-            return
-
-        if matches[0] == 'echo' and matches[1]:
-            bot.sendMessage(usr['id'], matches[1])
-            return
 
 if __name__ == "__main__":
-    app.run()
+    app.run(host="0.0.0.0", port=10000)
