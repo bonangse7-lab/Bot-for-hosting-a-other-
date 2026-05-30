@@ -5,7 +5,7 @@ import string
 from flask import Flask, request
 from telepot.namedtuple import InlineKeyboardMarkup, InlineKeyboardButton
 
-TOKEN = os.environ.get("8804083457:AAFVXlNEvvuQxwyLskKOoRjvtd_Dq6eV8OU")
+TOKEN = os.environ.get("BOT_TOKEN")
 
 SECRET = ''.join(random.choice(string.ascii_letters) for _ in range(20))
 
